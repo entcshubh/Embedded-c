@@ -2,8 +2,8 @@
 #include <PubSubClient.h>
 
 // Replace with your network credentials
-const char* ssid = "realme Narzo 10";
-const char* password = "00000007";
+const char* ssid = "your hotspot name";
+const char* password = "hotspot password";
 
 // Replace with your MQTT broker details
 const char* mqtt_server = "test.mosquitto.org";
