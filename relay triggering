@@ -1,0 +1,36 @@
+#include <Arduino.h>
+
+const int relayPinA = 32;
+const int relayPinB = 33;
+const int relayInterval = 1000;
+
+unsigned long previousMillis = 0;
+int currentRelay = relayPinA;
+
+void setup()
+{
+  pinMode(32, OUTPUT);
+  pinMode(33, OUTPUT);
+}
+
+void loop()
+{
+  unsigned long currentMillis = millis();
+  static bool relaynum = 0;               //Defines a static boolean variable (relaynum) that retains its value between function calls. It is used to alternate between two states (0 and 1).
+
+  if (currentMillis - previousMillis > relayInterval)
+  {
+    previousMillis = currentMillis;
+    relaynum = !relaynum;                //Toggles the relaynum variable between true and false (0 and 1).
+    if (relaynum == 0)
+    {
+      digitalWrite(relayPinA, LOW);
+      digitalWrite(relayPinB, HIGH);
+    }
+    else
+    {
+      digitalWrite(relayPinA, HIGH);
+      digitalWrite(relayPinB, LOW);
+    }
+  }
+}
