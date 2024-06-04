@@ -1,0 +1,83 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <SPI.h>
+#include <ModbusClientTCPasync.h>
+
+#ifndef MY_SSID
+#define MY_SSID "shubh"
+#endif
+#ifndef MY_PASS
+#define MY_PASS "00000007"
+#endif
+
+char ssid[] = MY_SSID;
+char pass[] = MY_PASS;
+IPAddress ip = {192, 168, 200, 23}; // IP address of modbus server
+uint16_t port = 502;                // port of modbus server
+
+ModbusClientTCPasync MB(ip, port);
+
+// plus a user-supplied token to identify the causing request
+void handleData(ModbusMessage response, uint32_t token)
+{
+  Serial.printf("Response: serverID=%d, FC=%d, Token=%08X, length=%d:\n", response.getServerID(), response.getFunctionCode(), token, response.size());
+  for (auto &byte : response)
+  {
+    Serial.printf("%02X ", byte);
+  }
+  Serial.println("");
+}
+
+void handleError(Error error, uint32_t token)
+{
+  ModbusError me(error);
+  Serial.printf("Error response: %02X - %s token: %d\n", (int)me, (const char *)me, token);
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial)
+  {
+  }
+  Serial.println("__ OK __");
+
+  WiFi.begin(ssid, pass);
+  delay(200);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(". ");
+    delay(1000);
+  }
+  IPAddress wIP = WiFi.localIP();
+  Serial.printf("WIFi IP address: %u.%u.%u.%u\n", wIP[0], wIP[1], wIP[2], wIP[3]);
+
+  // Set up ModbusTCP client.
+  // - provide onData handler function
+  MB.onDataHandler(&handleData);
+  // - provide onError handler function
+  MB.onErrorHandler(&handleError);
+  // Set message timeout to 2000ms and interval between requests to the same host to 200ms
+  MB.setTimeout(10000);
+  // // Start ModbusTCP background task
+  //   MB.setIdleTimeout(60000);
+}
+
+// loop() - nothing done here today!
+void loop()
+{
+  static unsigned long lastMillis = 0;
+  if (millis() - lastMillis > 5000)
+  {
+    lastMillis = millis();
+
+    Serial.printf("sending request with token %d\n", (uint32_t)lastMillis);
+    Error err;
+    err = MB.addRequest((uint32_t)lastMillis, 1, READ_HOLD_REGISTER, 10, 4);
+    if (err != SUCCESS)
+    {
+      ModbusError e(err);
+      Serial.printf("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+    }
+  }
+}
