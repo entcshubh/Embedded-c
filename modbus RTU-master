@@ -1,0 +1,83 @@
+#include <Arduino.h>
+#include "ModbusClientRTU.h"
+#include "Logging.h"
+#include <SPI.h>
+
+// Definitions for this special case
+#define RXPIN 16
+#define TXPIN 17
+#define REDEPIN 2
+#define BAUDRATE 9600
+#define FIRST_REGISTER 1
+#define NUM_VALUES 2
+#define READ_INTERVAL 5000
+#define SLAVE_ID 1
+#define SENSOR1 1
+
+uint32_t request_time;
+
+ModbusClientRTU MB(REDEPIN);
+
+void handleData(ModbusMessage response, uint32_t token)
+{
+  uint8_t data[256];
+  memcpy(data, (&response.data()[3]), response.size() - 3);
+  if (token == SENSOR1)
+  {
+    for (uint8_t i = 0; i < response.size() - 3; ++i)
+    {
+      Serial.printf("%d ", data[i]);
+    }
+  }
+}
+
+void handleError(Error error, uint32_t token)
+{
+  ModbusError me(error);
+  LOG_E("Error response: %02X - %s\n", (int)me, (const char *)me);
+  if (token == SENSOR1)
+  {
+    if (error == TIMEOUT)
+    {
+      Serial.println("Timeout");
+    }
+    else
+    {
+      Serial.println("Error");
+    }
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial)
+  {
+  }
+  Serial.println("__ OK __");
+
+  RTUutils::prepareHardwareSerial(Serial1);
+  Serial1.begin(BAUDRATE, SERIAL_8N1, RXPIN, TXPIN);
+
+  MB.onDataHandler(&handleData);
+  MB.onErrorHandler(&handleError);
+  MB.setTimeout(3000);
+  MB.begin(Serial1);
+}
+
+void loop()
+{
+  static unsigned long next_request = millis();
+
+  if (millis() - next_request > READ_INTERVAL)
+  {
+    Error err = MB.addRequest(SENSOR1, SLAVE_ID, READ_HOLD_REGISTER, FIRST_REGISTER, NUM_VALUES);
+    if (err != SUCCESS)
+  {
+      ModbusError e(err);
+      LOG_E("Error creating request: %02X - %s\n", (int)e, (const char *)e);
+      Serial.println("\nrequest error\n");
+    }
+    next_request = millis();
+  }
+}
